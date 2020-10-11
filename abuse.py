@@ -1,5 +1,10 @@
 import requests, json, datetime
 from time import sleep
+import psycopg2
+
+conn = psycopg2.connect(host='localhost',dbname='testdb',user='tmclzns',password='ycdc@2020!',port='5432')
+
+cur = conn.cursor()
 
 url_id = 'https://urlhaus-api.abuse.ch/v1/urlid/' # urlid 값을 
 recent = 'https://urlhaus-api.abuse.ch/v1/urls/recent/limit/1/'
@@ -16,7 +21,7 @@ print(urlid)
 
 
 test_url_id = 1
-for test_url_id in range (1,int(urlid)+1):
+for test_url_id in range (1,1000):
     params = {'urlid':test_url_id} 
     res_csv = requests.post(url_id,data=params)
     res_csv_json = json.loads(res_csv.text)
