@@ -1,8 +1,8 @@
-import requests, json
+import requests, json, datetime
+from time import sleep
+
 url_id = 'https://urlhaus-api.abuse.ch/v1/urlid/' # urlid 값을 
 recent = 'https://urlhaus-api.abuse.ch/v1/urls/recent/limit/1/'
-abuse_num = open('./abuse_id.txt','r') # 가장 마지막까지 읽어온 urlid값을 저장
-abuse_csv = open('./abuse_csv','a') # urlid값으로 조회한 데이터를 저장
 
 #------------------------------------------
 #recent/limit/1로 접속해서 가장 최근에 등록된 정보의 urlid값을 참고함
@@ -12,21 +12,40 @@ res_recent_json = json.loads(res_recent.text)
 for key in res_recent_json['urls']:
     urlid = key['id']
 print(urlid)
-#------------------------------------------
+#print(res_recent_json)
 
-#------------------------------------------
-abuse_urlid = abuse_num.readline() # 마지막으로 조회한 urlid값을 불러옴
 
-params = {'urlid':abuse_urlid} 
-res_csv = requests.post(url_id,data=params)
-res_csv_json = str(json.loads(res_csv.text))
-
-abuse_csv.write(str(abuse_urlid))
-abuse_csv.write('\n')
-abuse_csv.write(res_csv_json)
-abuse_csv.write('\n')
-
-abuse_num.write(abuse_urlid)
-#------------------------------------------ # 이 부분의 urlid값 만큼 반복(추가하면 됨)을 돌리고 urlid값을 abuse_num에 저장
-
+test_url_id = 1
+for test_url_id in range (1,int(urlid)+1):
+    params = {'urlid':test_url_id} 
+    res_csv = requests.post(url_id,data=params)
+    res_csv_json = json.loads(res_csv.text)
+    #print(res_csv.text)
+    #print(res_csv_json['date_added'])
+    if res_csv_json['query_status'] == "ok":
+        if res_csv_json['payloads'] == None:
+            print("==========================================")
+            print("status :",res_csv_json['query_status'])
+            print("url_id :",test_url_id)
+            print("url :",res_csv_json['url'])
+            print("reg_date :",datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),"UTC")
+            print("cre_date :",res_csv_json['date_added'])
+            print("response_md5 : NULL")
+            print("response_sha256 : NULL")
+            print("file_type : NULL")
+        
+    
+        else:
+            for payload in res_csv_json['payloads']:
+                print("==========================================")
+                print("status :",res_csv_json['query_status'])
+                print("url_id :",test_url_id)
+                print("url :",res_csv_json['url'])
+                print("reg_date :",datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),"UTC")
+                print("cre_date :",res_csv_json['date_added'])
+                print("response_md5 :",payload['response_md5'])
+                print("response_sha256 :",payload['response_sha256'])
+                print("file_type :",payload['file_type'])
+             
+        
 

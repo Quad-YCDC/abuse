@@ -1,0 +1,84 @@
+{
+    "query_status": "ok",
+    "id": "1",
+    "urlhaus_reference": "https:\/\/urlhaus.abuse.ch\/url\/1\/",
+    "url": "http:\/\/beautyevent.ru\/Invoice-for-j\/b-03\/05\/2018\/",
+    "url_status": "offline",
+    "host": "beautyevent.ru",
+    "date_added": "2018-03-05 14:18:19 UTC",
+    "threat": "malware_download",
+    "blacklists": {
+        "spamhaus_dbl": "not listed",
+        "surbl": "not listed"
+    },
+    "reporter": "abuse_ch",
+    "larted": "true",
+    "takedown_time_seconds": "1626008",
+    "tags": [
+        "doc",
+        "emotet",
+        "heodo"
+    ],
+    "payloads": [
+        {
+            "firstseen": "2019-11-30",
+            "filename": null,
+            "file_type": "html",
+            "response_size": "1088",
+            "response_md5": "9b30dc58d81d586473dc8e9966664a22",
+            "response_sha256": "1ae60311d541cae37c0fc7a002c06aae3f7357a4ede2416640466d4b8936a05f",
+            "urlhaus_download": "https:\/\/urlhaus-api.abuse.ch\/v1\/download\/1ae60311d541cae37c0fc7a002c06aae3f7357a4ede2416640466d4b8936a05f\/",
+            "signature": null,
+            "virustotal": {
+                "result": "0 \/ 57",
+                "percent": "0.00",
+                "link": "https:\/\/www.virustotal.com\/file\/1ae60311d541cae37c0fc7a002c06aae3f7357a4ede2416640466d4b8936a05f\/analysis\/1574364095\/"
+            }
+        },
+        {
+            "firstseen": "2018-03-06",
+            "filename": "Invoice.doc",
+            "file_type": "doc",
+            "response_size": "232448",
+            "response_md5": "8dd5e14076f716435b4a2460948dc882",
+            "response_sha256": "e2e9ae9283e5575e2438ec2cef53fe9b80e11a6647d7e9d7b00381462ed852d2",
+            "urlhaus_download": "https:\/\/urlhaus-api.abuse.ch\/v1\/download\/e2e9ae9283e5575e2438ec2cef53fe9b80e11a6647d7e9d7b00381462ed852d2\/",
+            "signature": "",
+            "virustotal": {
+                "result": "5 \/ 58",
+                "percent": "8.62",
+                "link": "https:\/\/www.virustotal.com\/file\/e2e9ae9283e5575e2438ec2cef53fe9b80e11a6647d7e9d7b00381462ed852d2\/analysis\/1520314333\/"
+            }
+        },
+        {
+            "firstseen": "2018-03-05",
+            "filename": "Outstanding Invoices.doc",
+            "file_type": "doc",
+            "response_size": "232960",
+            "response_md5": "cf1e813a23ffad3773519915c116d49c",
+            "response_sha256": "c99e1abc56084caabf3532cc2842b6b42e16bfcb625667721e8174487b9c8571",
+            "urlhaus_download": "https:\/\/urlhaus-api.abuse.ch\/v1\/download\/c99e1abc56084caabf3532cc2842b6b42e16bfcb625667721e8174487b9c8571\/",
+            "signature": "",
+            "virustotal": {
+                "result": "3 \/ 58",
+                "percent": "5.17",
+                "link": "https:\/\/www.virustotal.com\/file\/c99e1abc56084caabf3532cc2842b6b42e16bfcb625667721e8174487b9c8571\/analysis\/1520264421\/"
+            }
+        },
+        {
+            "firstseen": "2018-03-05",
+            "filename": "Paid Invoice & Credit Card Receipt.doc",
+            "file_type": "doc",
+            "response_size": "238592",
+            "response_md5": "cc1924283df97f24500f5559c95098ca",
+            "response_sha256": "477fed0554457b36c085b2e9174edd978e7fe537840eb793d038bec798f8e129",
+            "urlhaus_download": "https:\/\/urlhaus-api.abuse.ch\/v1\/download\/477fed0554457b36c085b2e9174edd978e7fe537840eb793d038bec798f8e129\/",
+            "signature": "",
+            "virustotal": {
+                "result": "4 \/ 54",
+                "percent": "7.41",
+                "link": "https:\/\/www.virustotal.com\/file\/477fed0554457b36c085b2e9174edd978e7fe537840eb793d038bec798f8e129\/analysis\/1520256821\/"
+            }
+        }
+    ]
+}
