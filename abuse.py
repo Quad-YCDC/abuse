@@ -27,10 +27,19 @@ def get_recent_urlid():
 def reputation_audit_start():
     cur.execute('select url_id from reputation_audit_abuse order by log_date desc limit 1;')
     last_urlid = cur.fetchall()
-    last_urlid = list(map(int,last_urlid[0]))[0]
-    print(type(last_urlid))
-    cur.execute('insert into reputation_audit_abuse(audit_log,log_date,url_id) values(\'abuse 수집 시작\' ,now(),%d);'%last_urlid)
-    conn.commit()
+    if last_urlid == []:
+        cur.execute('insert into reputation_audit_abuse(audit_log,log_date,url_id) values(\'abuse 수집 urlid 초기값\' ,now(),1);');
+        conn.commit()
+        cur.execute('select url_id from reputation_audit_abuse order by log_date desc limit 1;')
+        last_urlid = cur.fetchall()
+        last_urlid = list(map(int,last_urlid[0]))[0]
+    else:
+        cur.execute('select url_id from reputation_audit_abuse order by log_date desc limit 1;')
+        last_urlid = cur.fetchall()
+        last_urlid = list(map(int,last_urlid[0]))[0]
+        print(type(last_urlid))
+        cur.execute('insert into reputation_audit_abuse(audit_log,log_date,url_id) values(\'abuse 수집 시작\' ,now(),%d);'%last_urlid)
+        conn.commit()
     return last_urlid
 
 
@@ -49,7 +58,7 @@ last_urlid = reputation_audit_start()
 
 recent_urlid = get_recent_urlid()
 
-for urlid_key in range (12322,recent_urlid):
+for urlid_key in range (last_urlid,recent_urlid):
     params = {'urlid':urlid_key} 
     res_csv = requests.post(url_id,data=params)
     try:
@@ -85,6 +94,7 @@ for urlid_key in range (12322,recent_urlid):
                     print("file_type :",payload['file_type'])
                     cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'2\',%s,%s,%s);',(payload['response_md5'],now_date,res_csv_json['date_added']))
                     cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'3\',%s,%s,%s);',(payload['response_sha256'],now_date,res_csv_json['date_added']))
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'4\',%s,%s,%s);',(payload['file_type'],now_date,res_csv_json['date_added']))
                     conn.commit()
     except:
         f.write(str(urlid_key)+'error')

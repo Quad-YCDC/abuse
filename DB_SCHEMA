@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS reputation_indicator (
-  id INTEGER NOT NULL,
+  id SERIAL NOT NULL,
   indicator_name TEXT NOT NULL,
   PRIMARY KEY (id)
 );
@@ -8,7 +8,7 @@ COMMENT ON TABLE  reputation_indicator IS '평판 indicator 종류';
 COMMENT ON COLUMN  reputation_indicator.indicator_name IS 'indicator 이름';
 
 CREATE TABLE IF NOT EXISTS  reputation_service (
-  id INTEGER NOT NULL,
+  id SERIAL NOT NULL,
   service_name TEXT NOT NULL,
   PRIMARY KEY (id)
 );
@@ -17,18 +17,20 @@ COMMENT ON TABLE  reputation_service IS '평판 서비스 종류';
 COMMENT ON COLUMN  reputation_service.service_name IS 'indicator 이름';
 
 CREATE TABLE IF NOT EXISTS  reputation_audit (
-  id INTEGER NOT NULL,
+  id SERIAL NOT NULL,
   audit_log TEXT NOT NULL,
   log_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  url_id INTEGER NOT NULL,
   PRIMARY KEY (id)
 );
+
 
 COMMENT ON TABLE  reputation_audit IS 'Audit 로그';
 COMMENT ON COLUMN  reputation_audit.audit_log IS '로그 내용';
 COMMENT ON COLUMN  reputation_audit.log_date IS '로그 시각';
 
 CREATE TABLE IF NOT EXISTS  reputation_data (
-  id INTEGER NOT NULL,
+  id SERIAL NOT NULL,
   service INTEGER NOT NULL,
   indicator_type INTEGER NOT NULL,
   indicator TEXT NOT NULL,
@@ -49,3 +51,9 @@ COMMENT ON COLUMN  reputation_data.indicator_type IS 'indicator 종류';
 COMMENT ON COLUMN  reputation_data.indicator IS 'indicator 내용';
 COMMENT ON COLUMN  reputation_data.reg_date IS 'DB 등록 일시';
 COMMENT ON COLUMN  reputation_data.cre_date IS '패턴 생성 일시';
+
+insert into reputation_audit_abuse(audit_log,log_date,url_id) values(‘abuse 수집 시작’ ,now(),1);
+
+select url_id from reputation_audit_abuse order by log_date desc limit 1;
+
+truncate table reputation_data restart identity;
