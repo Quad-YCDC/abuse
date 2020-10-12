@@ -6,6 +6,7 @@ conn = psycopg2.connect(host='localhost',dbname='testdb1',user='tmclzns',passwor
 
 cur = conn.cursor()
 
+f = open('./error_log.txt','a')
 
 def get_recent_urlid():
     url_id = 'https://urlhaus-api.abuse.ch/v1/urlid/' # urlid 값을 
@@ -48,48 +49,47 @@ last_urlid = reputation_audit_start()
 
 recent_urlid = get_recent_urlid()
 
-for urlid_key in range (last_urlid,recent_urlid):
+for urlid_key in range (12322,recent_urlid):
     params = {'urlid':urlid_key} 
     res_csv = requests.post(url_id,data=params)
-    res_csv_json = json.loads(res_csv.text)
-    #print(res_csv.text)
-    #print(res_csv_json['date_added'])
-    
+    try:
+        res_csv_json = json.loads(res_csv.text)
+        #print(res_csv.text)
+        #print(res_csv_json['date_added'])
+        
 
-    if res_csv_json['query_status'] == "ok":
-        cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'1\',%s,%s,%s);',(res_csv_json['url'], datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),res_csv_json['date_added']))
-        conn.commit()
+        if res_csv_json['query_status'] == "ok":
+            cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'1\',%s,%s,%s);',(res_csv_json['url'], datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),res_csv_json['date_added']))
+            conn.commit()
 
-        if res_csv_json['payloads'] == None:
-            now_date = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             print("==========================================")
             print("status :",res_csv_json['query_status'])
             print("url_id :",urlid_key)
             print("url :",res_csv_json['url'])
-            print("reg_date :",now_date)
-            print("cre_date :",res_csv_json['date_added'])
-            print("response_md5 : NULL")
-            print("response_sha256 : NULL")
-            print("file_type : NULL")
-            cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'2\',%s,%s,%s);',(payload['response_md5'],now_date,res_csv_json['date_added']))
-            cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'3\',%s,%s,%s);',(payload['response_sha256'],now_date,res_csv_json['date_added']))
-            conn.commit()
-    
-        else:
-            for payload in res_csv_json['payloads']:
+            
+            if res_csv_json['payloads'] == None:
                 now_date = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                print("==========================================")
-                print("status :",res_csv_json['query_status'])
-                print("url_id :",urlid_key)
-                print("url :",res_csv_json['url'])
                 print("reg_date :",now_date)
                 print("cre_date :",res_csv_json['date_added'])
-                print("response_md5 :",payload['response_md5'])
-                print("response_sha256 :",payload['response_sha256'])
-                print("file_type :",payload['file_type'])
-                cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'2\',%s,%s,%s);',(payload['response_md5'],now_date,res_csv_json['date_added']))
-                cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'3\',%s,%s,%s);',(payload['response_sha256'],now_date,res_csv_json['date_added']))
-                conn.commit()
+                print("response_md5 : NULL")
+                print("response_sha256 : NULL")
+                print("file_type : NULL")
+        
+            else:
+                for payload in res_csv_json['payloads']:
+                    now_date = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                    print("reg_date :",now_date)
+                    print("cre_date :",res_csv_json['date_added'])
+                    print("response_md5 :",payload['response_md5'])
+                    print("response_sha256 :",payload['response_sha256'])
+                    print("file_type :",payload['file_type'])
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'2\',%s,%s,%s);',(payload['response_md5'],now_date,res_csv_json['date_added']))
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'3\',%s,%s,%s);',(payload['response_sha256'],now_date,res_csv_json['date_added']))
+                    conn.commit()
+    except:
+        f.write(str(urlid_key)+'error')
+        print(urlid_key,'error')
+
              
 reputation_audit_end(urlid_key)
 
