@@ -2,7 +2,11 @@ import requests, json, datetime
 from time import sleep
 import psycopg2
 
-conn = psycopg2.connect(host='localhost',dbname='testdb1',user='tmclzns',password='ycdc@2020!',port='5432')
+conn = psycopg2.connect(host='localhost',
+                        dbname='testdb1',
+                        user='tmclzns',
+                        password='ycdc@2020!'
+                        ,port='5432')
 
 cur = conn.cursor()
 
@@ -11,7 +15,6 @@ f = open('./error_log.txt','a')
 def get_recent_urlid():
     url_id = 'https://urlhaus-api.abuse.ch/v1/urlid/' # urlid 값을 
     recent = 'https://urlhaus-api.abuse.ch/v1/urls/recent/limit/1/'
-
     #------------------------------------------
     #recent/limit/1로 접속해서 가장 최근에 등록된 정보의 urlid값을 참고함
     res_recent = requests.get(recent)
@@ -22,6 +25,22 @@ def get_recent_urlid():
     #print(res_recent_json)
     recent_urlid = int(urlid)
     return recent_urlid
+
+
+
+def indicator_check():
+    indicator_name = ['url','md5','sha256','file_type']
+    for name in indicator_name:
+        cur.execute('select indicator_name from reputation_indicator where indicator_name = \'%s\';'%name)
+        name_check = cur.fetchall()
+        name_check = list(map(str,name_check[0]))[0]
+        print('nameckeck:',name_check)
+        if name_check != name:
+            cur.execute('insert into reputation_indicator(indicator_name) values (%s);'%name);
+            conn.commit()
+        else:
+            print(name);
+        
 
 
 def reputation_audit_start():
@@ -58,6 +77,9 @@ last_urlid = reputation_audit_start()
 
 recent_urlid = get_recent_urlid()
 
+indicator_check()
+
+'''
 for urlid_key in range (last_urlid,recent_urlid):
     params = {'urlid':urlid_key} 
     res_csv = requests.post(url_id,data=params)
@@ -103,3 +125,4 @@ for urlid_key in range (last_urlid,recent_urlid):
              
 reputation_audit_end(urlid_key)
 
+'''
