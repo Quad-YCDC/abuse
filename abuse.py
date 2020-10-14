@@ -88,7 +88,7 @@ recent_urlid = get_recent_urlid()
 
 indicator_check()
 
-for urlid_key in range (last_urlid,50):
+for urlid_key in range (last_urlid,recent_urlid):
     params = {'urlid':urlid_key} 
     res_csv = requests.post(url_id,data=params)
     try:
