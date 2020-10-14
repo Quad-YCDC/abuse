@@ -13,7 +13,6 @@ cur = conn.cursor()
 f = open('./error_log.txt','a')
 
 def get_recent_urlid():
-    url_id = 'https://urlhaus-api.abuse.ch/v1/urlid/' # urlid 값을 
     recent = 'https://urlhaus-api.abuse.ch/v1/urls/recent/limit/1/'
     #------------------------------------------
     #recent/limit/1로 접속해서 가장 최근에 등록된 정보의 urlid값을 참고함
@@ -24,9 +23,15 @@ def get_recent_urlid():
         urlid = key['id']
     #print(res_recent_json)
     recent_urlid = int(urlid)
+    print('recenturlid:',recent_urlid)
     return recent_urlid
 
+def search_indicator(indicator):
+    cur.execute('select id from reputation_indicator where indicator_name = \'%s\';'%indicator)
+    indicator_id = cur.fetchall()
+    indicator_id = list(map(int,indicator_id[0]))[0]
 
+    return indicator_id
 
 def indicator_check():
     indicator_name = ['url','md5','sha256','file_type']
@@ -36,7 +41,7 @@ def indicator_check():
         name_check = list(map(str,name_check[0]))[0]
         print('nameckeck:',name_check)
         if name_check != name:
-            cur.execute('insert into reputation_indicator(indicator_name) values (%s);'%name);
+            cur.execute('insert into reputation_indicator(indicator_name) values (\'%s\');'%name);
             conn.commit()
         else:
             print(name);
@@ -44,20 +49,22 @@ def indicator_check():
 
 
 def reputation_audit_start():
-    cur.execute('select url_id from reputation_audit_abuse order by log_date desc limit 1;')
+    cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
     last_urlid = cur.fetchall()
     if last_urlid == []:
-        cur.execute('insert into reputation_audit_abuse(audit_log,log_date,url_id) values(\'abuse 수집 urlid 초기값\' ,now(),1);');
+        cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(\'1\',\'초기화\',now());');
         conn.commit()
-        cur.execute('select url_id from reputation_audit_abuse order by log_date desc limit 1;')
+        cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
         last_urlid = cur.fetchall()
         last_urlid = list(map(int,last_urlid[0]))[0]
     else:
-        cur.execute('select url_id from reputation_audit_abuse order by log_date desc limit 1;')
+        cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
         last_urlid = cur.fetchall()
         last_urlid = list(map(int,last_urlid[0]))[0]
         print(type(last_urlid))
-        cur.execute('insert into reputation_audit_abuse(audit_log,log_date,url_id) values(\'abuse 수집 시작\' ,now(),%d);'%last_urlid)
+        cur.execute('insert into reputation_audit(audit_log,log_date) values(\'abuse 수집 시작\' ,now());')
+        conn.commit()
+        cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,now());',(last_urlid,'수집 시작 시간'))
         conn.commit()
     return last_urlid
 
@@ -65,7 +72,9 @@ def reputation_audit_start():
 
 
 def reputation_audit_end(recent_urlid):
-    cur.execute('insert into reputation_audit_abuse(audit_log,log_date,url_id) values(\'abuse 수집 종료\' ,now(),%d);'%recent_urlid)
+    cur.execute('insert into reputation_audit(audit_log,log_date) values(\'abuse 수집 종료\',now());')
+    cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,now());',(recent_urlid,'수집 종료 시간'))
+
     conn.commit()
 
 
@@ -79,8 +88,7 @@ recent_urlid = get_recent_urlid()
 
 indicator_check()
 
-'''
-for urlid_key in range (last_urlid,recent_urlid):
+for urlid_key in range (last_urlid,50):
     params = {'urlid':urlid_key} 
     res_csv = requests.post(url_id,data=params)
     try:
@@ -90,7 +98,7 @@ for urlid_key in range (last_urlid,recent_urlid):
         
 
         if res_csv_json['query_status'] == "ok":
-            cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'1\',%s,%s,%s);',(res_csv_json['url'], datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),res_csv_json['date_added']))
+            cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('url'),res_csv_json['url'], datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),res_csv_json['date_added']))
             conn.commit()
 
             print("==========================================")
@@ -114,9 +122,9 @@ for urlid_key in range (last_urlid,recent_urlid):
                     print("response_md5 :",payload['response_md5'])
                     print("response_sha256 :",payload['response_sha256'])
                     print("file_type :",payload['file_type'])
-                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'2\',%s,%s,%s);',(payload['response_md5'],now_date,res_csv_json['date_added']))
-                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'3\',%s,%s,%s);',(payload['response_sha256'],now_date,res_csv_json['date_added']))
-                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',\'4\',%s,%s,%s);',(payload['file_type'],now_date,res_csv_json['date_added']))
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('md5'),payload['response_md5'],now_date,res_csv_json['date_added']))
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('sha256'),payload['response_sha256'],now_date,res_csv_json['date_added']))
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('file_type'),payload['file_type'],now_date,res_csv_json['date_added']))
                     conn.commit()
     except:
         f.write(str(urlid_key)+'error')
@@ -125,4 +133,4 @@ for urlid_key in range (last_urlid,recent_urlid):
              
 reputation_audit_end(urlid_key)
 
-'''
+
