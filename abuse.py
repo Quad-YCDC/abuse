@@ -1,6 +1,7 @@
 import requests, json, datetime
 from time import sleep
 import psycopg2
+import urllib3
 
 conn = psycopg2.connect(host='localhost',
                         dbname='testdb1',
@@ -10,14 +11,16 @@ conn = psycopg2.connect(host='localhost',
 
 cur = conn.cursor()
 
+http = urllib3.PoolManager()
+
 f = open('./error_log.txt','a')
 
 def get_recent_urlid():
     recent = 'https://urlhaus-api.abuse.ch/v1/urls/recent/limit/1/'
     #------------------------------------------
     #recent/limit/1로 접속해서 가장 최근에 등록된 정보의 urlid값을 참고함
-    res_recent = requests.get(recent)
-    res_recent_json = json.loads(res_recent.text)
+    res_recent = http.request('GET',recent)
+    res_recent_json = json.loads(res_recent.data.decode('utf-8'))
 
     for key in res_recent_json['urls']:
         urlid = key['id']
@@ -90,9 +93,9 @@ indicator_check()
 
 for urlid_key in range (last_urlid,recent_urlid):
     params = {'urlid':urlid_key} 
-    res_csv = requests.post(url_id,data=params)
+    res_csv = http.request('POST',url_id,fields=params)
     try:
-        res_csv_json = json.loads(res_csv.text)
+        res_csv_json = json.loads(res_csv.data.decode('utf-8'))
         #print(res_csv.text)
         #print(res_csv_json['date_added'])
         
