@@ -2,12 +2,22 @@ import requests, json, datetime
 from time import sleep
 import psycopg2
 import urllib3
+import configparser
+config = configparser.ConfigParser()
+config.read('./dev.ini')
 
-conn = psycopg2.connect(host='localhost',
-                        dbname='testdb1',
-                        user='tmclzns',
-                        password='ycdc@2020!'
-                        ,port='5432')
+db_conn = config['local_db']
+host = db_conn['db_host']
+name = db_conn['db_name']
+user = db_conn['db_user']
+password = db_conn['db_password']
+port = db_conn['db_port']
+
+conn = psycopg2.connect(host=host,
+                        dbname=name,
+                        user=user,
+                        password=password,
+                        port=port)
 
 cur = conn.cursor()
 
@@ -49,27 +59,27 @@ def indicator_check():
         else:
             print(name);
         
-
-
 def reputation_audit_start():
-    cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
-    last_urlid = cur.fetchall()
-    if last_urlid == []:
-        cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(\'1\',\'초기화\',now());');
-        conn.commit()
         cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
         last_urlid = cur.fetchall()
-        last_urlid = list(map(int,last_urlid[0]))[0]
-    else:
-        cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
-        last_urlid = cur.fetchall()
-        last_urlid = list(map(int,last_urlid[0]))[0]
-        print(type(last_urlid))
-        cur.execute('insert into reputation_audit(audit_log,log_date) values(\'abuse 수집 시작\' ,now());')
-        conn.commit()
-        cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,now());',(last_urlid,'수집 시작 시간'))
-        conn.commit()
-    return last_urlid
+        if last_urlid == []:
+            cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(\'1\',\'초기화\',now());');
+            conn.commit()
+            cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
+            last_urlid = cur.fetchall()
+            last_urlid = list(map(int,last_urlid[0]))[0]
+        else:
+            cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
+            last_urlid = cur.fetchall()
+            last_urlid = list(map(int,last_urlid[0]))[0]
+            print(type(last_urlid))
+            cur.execute('insert into reputation_audit(audit_log,log_date) values(\'abuse 수집 시작\' ,now());')
+            conn.commit()
+            cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,now());',(last_urlid,'수집 시작 시간'))
+            conn.commit()
+        return last_urlid
+
+
 
 
 
@@ -101,7 +111,7 @@ for urlid_key in range (last_urlid,recent_urlid):
         
 
         if res_csv_json['query_status'] == "ok":
-            cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('url'),res_csv_json['url'], datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),res_csv_json['date_added']))
+            cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('URL'),res_csv_json['url'], datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),res_csv_json['date_added']))
             conn.commit()
 
             print("==========================================")
@@ -125,13 +135,13 @@ for urlid_key in range (last_urlid,recent_urlid):
                     print("response_md5 :",payload['response_md5'])
                     print("response_sha256 :",payload['response_sha256'])
                     print("file_type :",payload['file_type'])
-                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('md5'),payload['response_md5'],now_date,res_csv_json['date_added']))
-                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('sha256'),payload['response_sha256'],now_date,res_csv_json['date_added']))
-                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('file_type'),payload['file_type'],now_date,res_csv_json['date_added']))
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('FileHash-MD5'),payload['response_md5'],now_date,res_csv_json['date_added']))
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('FileHash-SHA256'),payload['response_sha256'],now_date,res_csv_json['date_added']))
+                    cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('File_type'),payload['file_type'],now_date,res_csv_json['date_added']))
                     conn.commit()
-    except:
-        f.write(str(urlid_key)+'error')
+    except Exception as ex:
         print(urlid_key,'error')
+        print('ex :',ex)
 
              
 reputation_audit_end(urlid_key)
