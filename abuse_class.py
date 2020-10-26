@@ -1,70 +1,53 @@
 import requests, json, datetime
 from time import sleep
 import psycopg2
+from psycopg2 import pool
 import urllib3
 import configparser
+from config import config
 
-class Psql_conn:
-    def Conn(self,location):
-        config = configparser.ConfigParser()
-        config.read('./dev.ini')
-        db_conn = config[location]
-        host = db_conn['db_host']
-        name = db_conn['db_name']
-        user = db_conn['db_user']
-        password = db_conn['db_password']
-        port = db_conn['db_port']
 
-        conn = psycopg2.connect(host=host,
-                        dbname=name,
-                        user=user,
-                        password=password,
-                        port=port)
-        return conn
-
-class Reputation:
-    def indicator_check(self):
-        indicator_list = ['URL','MD5','SHA256','FILE_TYPE','REFERENCE']
-        for key in indicator_list:
-            cur.execute('select indicator_name from reputation_indicator where indicator_name = \'%s\';'%key)
-            a = cur.fetchall()
-            if(a != [] and a != key):
-                a = list(map(str,a[0]))[0]
-                print('Find Indicator :',key)
-            else:
-                cur.execute('insert into reputation_indicator(indicator_name) values(\'%s\');'%key)
-                print("Can't find indicator :",key)
-                print("Insert indicator :",key)
-                conn.commit()
+class List:
+    def list_int(self,d):
+        return list(d)[0]
     
+    def list_str(self,s):
+        return list(s)[0]
 
-    def audit_start(self):
-        cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
-        last_urlid = cur.fetchall()
-        if last_urlid == []:
-            cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(\'1\',\'초기화\',now());');
-            conn.commit()
-            cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
-            last_urlid = cur.fetchall()
-            last_urlid = list(map(int,last_urlid[0]))[0]
+class Connection_db:
+    try:
+        params = config()
+        conn = psycopg2.connect(**params)
+        cur = conn.cursor()
+        threaded_pool = psycopg2.pool.ThreadedConnectionPool(1, 20,**params)
+        if(threaded_pool):
+            print('DB 연결 성공')
+            pool_conn = threaded_pool.getconn()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print("DB 연결 에러", error)
+
+
+def Now():
+    return datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+
+
+class Audit:
+    def last_url_id(self):
+        Connection_db.cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
+        last_url_id = Connection_db.cur.fetchone()
+        if last_url_id == None:
+            print('초기값 설정')
+            Connection_db.cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(\'1\',\'초기화\',\'%s\');'%Now())
+            Connection_db.conn.commit()
+            last_url_id = 1
         else:
-            cur.execute('select url_id from abuse_url_id order by log_date desc limit 1;')
-            last_urlid = cur.fetchall()
-            last_urlid = list(map(int,last_urlid[0]))[0]
-            cur.execute('insert into reputation_audit(audit_log,log_date) values(\'abuse 수집 시작\' ,now());')
-            conn.commit()
-            cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,now());',(last_urlid,'수집 시작 시간'))
-            conn.commit()
-        print('last_urlid =',last_urlid)
-        return last_urlid
+            last_url_id = last_url_id[0]
+        print('last_url_id :',last_url_id)
+        return last_url_id
     
-    def audit_end(self,recent_urlid):
-        cur.execute('insert into reputation_audit(audit_log,log_date) values(\'abuse 수집 종료\',now());')
-        cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,now());',(recent_urlid,'수집 종료 시간'))
-        conn.commit()
-
     def recent_urlid(self):
         http = urllib3.PoolManager()
+        urllib3.disable_warnings()
         recent = 'https://urlhaus-api.abuse.ch/v1/urls/recent/limit/1/'
         #------------------------------------------
         #recent/limit/1로 접속해서 가장 최근에 등록된 정보의 urlid값을 참고함
@@ -75,41 +58,70 @@ class Reputation:
             urlid = key['id']
         #print(res_recent_json)
         recent_urlid = int(urlid)
-        print('recent_urlid:',recent_urlid)
+        print('recent_url_id:',recent_urlid)
         return recent_urlid
 
-    def indicator_num(self,indicator_name):
-        cur.execute('select id from reputation_indicator where indicator_name=\'%s\';'%indicator_name)
-        a = cur.fetchall()
-        a = list(map(int,a[0]))[0]
-        return a
+
+    def loging_start(self):
+        print('Abuse.ch 수집 시작')
+        Connection_db.cur.execute('insert into reputation_audit(id,audit_log,log_date) values(default,%s,%s);',('Abuse.ch 수집 시작',now))
+        Connection_db.conn.commit()
+    
+    def loging_end(self,recent_urlid):
+        Connection_db.cur.execute('insert into reputation_audit(audit_log,log_date) values(\'Abuse.ch 수집 종료\',\'%s\');'%now)
+        Connection_db.cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,%s);',(recent_urlid,'Abuse.ch 수집 종료 및 url_id 기록',now))
+        Connection_db.conn.commit()
+
+
+class Service:
+    def indicator_check(self):
+        indicator = ['URL','MD5','SHA256','FILE_TYPE','REFERENCE']
+        for key in indicator:
+            Connection_db.cur.execute('select indicator_name from reputation_indicator where indicator_name = \'%s\';'%key)
+            check = Connection_db.cur.fetchall()
+            check = list(map(str,check[0]))[0]
+            if(key != check):
+                print('Indicator가 없습니다! 새로운 Indicator를 추가합니다!')
+                print('New indicator :',key)
+                Connection_db.cur.execute('insert into reputation_indicator(indicator_name) values(\'%s\');'%key)
+            else:
+                print('Find indicator :',key)
+
+    def indicator_idx(self,indicator_name):
+        Connection_db.cur.execute('select id from reputation_indicator where indicator_name = \'%s\';'%indicator_name)
+        i = List().list_int(Connection_db.cur.fetchone())
+        return i
+    
+    def indicator_service(self,id):
+        Connection_db.cur.execute('select id from reputation_service where service_name = \'%s\';'%id)
+        i = List().list_int(Connection_db.cur.fetchone())
+        return i
+
+class Crawl:
+    Service().indicator_check()
+    last_url_id = Audit().last_url_id()
+    recent_url_id = Audit().recent_urlid()
+    url = 'https://urlhaus-api.abuse.ch/v1/urlid/'
+
+    Audit().loging_start()
+
+    for urlid_key in range (last_urlid,recent_urlid):
+        params = {'urlid':urlid_key} 
+        res_csv = http.request('POST',url_id,fields=params)
+        try:
+            res_csv_json = json.loads(res_csv.data.decode('utf-8'))
 
 
 
-#indicator 값 있는지 확인
-
-Date_Format = '%Y-%m-%d %H:%M:%S'
-conn = Psql_conn().Conn('local_db')
-cur = conn.cursor()
-url_id = 'https://urlhaus-api.abuse.ch/v1/urlid/'
-urllib3.disable_warnings()
-http = urllib3.PoolManager()
-
-R = Reputation()
-chekc = R.indicator_check()
-last_urlid = R.audit_start()
-#recent_urlid = R.recent_urlid()
-indicator_num_url = R.indicator_num('MD5')
-
-urlid_key = 1
-params = {'urlid':urlid_key} 
-res_csv = http.request('POST',url_id,fields=params)
-res_csv_json = json.loads(res_csv.data.decode('utf-8'))
 
 
-print(res_csv_json['urlhaus_reference'])
-        
 
+Crawl()
+Audit().loging_start()
+Connection_db.cur.close()
+Connection_db.conn.close()
+Connection_db.threaded_pool.putconn(Connection_db.pool_conn)
+            
 
 
 
