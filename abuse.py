@@ -83,7 +83,6 @@ def reputation_audit_start():
 
 
 
-
 def reputation_audit_end(recent_urlid):
     cur.execute('insert into reputation_audit(audit_log,log_date) values(\'abuse 수집 종료\',now());')
     cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,now());',(recent_urlid,'수집 종료 시간'))
@@ -139,7 +138,7 @@ for urlid_key in range (last_urlid,recent_urlid):
                     cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('FileHash-SHA256'),payload['response_sha256'],now_date,res_csv_json['date_added']))
                     cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(\'2\',%s,%s,%s,%s);',(search_indicator('File_type'),payload['file_type'],now_date,res_csv_json['date_added']))
                     conn.commit()
-    except Exception as ex:
+    except Exception as error:
         print(urlid_key,'error')
         print('ex :',ex)
 

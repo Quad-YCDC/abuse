@@ -5,6 +5,7 @@ from psycopg2 import pool
 import urllib3
 import configparser
 from config import config
+import pickle
 
 
 class List:
@@ -27,8 +28,9 @@ class Connection_db:
         print("DB 연결 에러", error)
 
 
-def Now():
-    return datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+class Date:
+    def Now(self):
+        return datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 
 
 class Audit:
@@ -37,7 +39,7 @@ class Audit:
         last_url_id = Connection_db.cur.fetchone()
         if last_url_id == None:
             print('초기값 설정')
-            Connection_db.cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(\'1\',\'초기화\',\'%s\');'%Now())
+            Connection_db.cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(\'1\',\'초기화\',\'%s\');'%Date().Now())
             Connection_db.conn.commit()
             last_url_id = 1
         else:
@@ -64,18 +66,18 @@ class Audit:
 
     def loging_start(self):
         print('Abuse.ch 수집 시작')
-        Connection_db.cur.execute('insert into reputation_audit(id,audit_log,log_date) values(default,%s,%s);',('Abuse.ch 수집 시작',now))
+        Connection_db.cur.execute('insert into reputation_audit(id,audit_log,log_date) values(default,%s,%s);',('Abuse.ch 수집 시작',Date().Now()))
         Connection_db.conn.commit()
     
     def loging_end(self,recent_urlid):
-        Connection_db.cur.execute('insert into reputation_audit(audit_log,log_date) values(\'Abuse.ch 수집 종료\',\'%s\');'%now)
-        Connection_db.cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,%s);',(recent_urlid,'Abuse.ch 수집 종료 및 url_id 기록',now))
+        Connection_db.cur.execute('insert into reputation_audit(audit_log,log_date) values(\'Abuse.ch 수집 종료\',\'%s\');'%Date().Now())
+        Connection_db.cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,%s);',(recent_urlid,'Abuse.ch 수집 종료 및 url_id 기록',Date().Now()))
         Connection_db.conn.commit()
 
 
 class Service:
     def indicator_check(self):
-        indicator = ['URL','MD5','SHA256','FILE_TYPE','REFERENCE']
+        indicator = ['URL','MD5','SHA256','FILE_TYPE']
         for key in indicator:
             Connection_db.cur.execute('select indicator_name from reputation_indicator where indicator_name = \'%s\';'%key)
             check = Connection_db.cur.fetchall()
@@ -101,23 +103,67 @@ class Crawl:
     Service().indicator_check()
     last_url_id = Audit().last_url_id()
     recent_url_id = Audit().recent_urlid()
+    service = Service().indicator_service('abuse')
+    indi = ['response_md5','response_sha256','file_type']
+    
     url = 'https://urlhaus-api.abuse.ch/v1/urlid/'
-
+    http = urllib3.PoolManager()
     Audit().loging_start()
 
-    for urlid_key in range (last_urlid,recent_urlid):
+    for urlid_key in range (last_url_id,recent_url_id):
         params = {'urlid':urlid_key} 
-        res_csv = http.request('POST',url_id,fields=params)
+        res_csv = http.request('POST',url,fields=params)
         try:
             res_csv_json = json.loads(res_csv.data.decode('utf-8'))
+            if res_csv_json['query_status'] == "ok":
+                Connection_db.cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(%s,%s,%s,%s,%s);',(service,Service().indicator_idx('URL'),res_csv_json['url'],Date().Now(),res_csv_json['date_added']))
+                Connection_db.conn.commit() 
+                print("==========================================")
+                print("status :",res_csv_json['query_status'])
+                print("url_id :",urlid_key)
+                print("url :",res_csv_json['url'])
+                
+                if res_csv_json['payloads'] == []:
+                    print("reg_date :",Date().Now())
+                    print("cre_date :",res_csv_json['date_added'])
+                    print("response_md5 : NULL")
+                    print("response_sha256 : NULL")
+                    print("file_type : NULL")
+            
+                else:
+                    for payload in res_csv_json['payloads']:
+                        print('payload :',payload)
+                        print("reg_date :",Date().Now())
+                        print("cre_date :",res_csv_json['date_added'])
+                        print("response_md5 :",payload['response_md5'])
+                        print("response_sha256 :",payload['response_sha256'])
+                        print("file_type :",payload['file_type'])
+                        for j in indi:
+                            'URL','MD5','SHA256','FILE_TYPE'
+                            if j == 'response_md5':
+                                a = 'MD5'
+                            elif j == 'response_sha256':
+                                a = 'SHA256'
+                            elif j == 'file_type':
+                                a = 'FILE_TYPE'
+                            Connection_db.cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(%s,%s,%s,%s,%s);',(service,Service().indicator_idx(a),payload[j],Date().Now(),res_csv_json['date_added']))
+                            Connection_db.conn.commit() 
+                       
+                
+        except Exception as error:
+            print(urlid_key,'error',error)
+            print(type(error))
+                  
+            
+
+    
+    Audit().loging_end(urlid_key)
 
 
 
 
 
 
-Crawl()
-Audit().loging_start()
 Connection_db.cur.close()
 Connection_db.conn.close()
 Connection_db.threaded_pool.putconn(Connection_db.pool_conn)
