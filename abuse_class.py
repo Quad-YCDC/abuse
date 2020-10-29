@@ -132,14 +132,15 @@ class Crawl:
             
                 else:
                     for payload in res_csv_json['payloads']:
-                        print('payload :',payload)
                         print("reg_date :",Date().Now())
                         print("cre_date :",res_csv_json['date_added'])
                         print("response_md5 :",payload['response_md5'])
                         print("response_sha256 :",payload['response_sha256'])
                         print("file_type :",payload['file_type'])
+                        print("\n")
+                        if payload['file_type'] == "unknown":
+                            continue
                         for j in indi:
-                            'URL','MD5','SHA256','FILE_TYPE'
                             if j == 'response_md5':
                                 a = 'MD5'
                             elif j == 'response_sha256':
@@ -149,10 +150,12 @@ class Crawl:
                             Connection_db.cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(%s,%s,%s,%s,%s);',(service,Service().indicator_idx(a),payload[j],Date().Now(),res_csv_json['date_added']))
                             Connection_db.conn.commit() 
                        
-                
+            
         except Exception as error:
             print(urlid_key,'error',error)
             print(type(error))
+
+        sleep(0.1)
                   
             
 
@@ -168,16 +171,4 @@ Connection_db.cur.close()
 Connection_db.conn.close()
 Connection_db.threaded_pool.putconn(Connection_db.pool_conn)
             
-
-
-
-
-
-
-
-
-
-
-
-
 
