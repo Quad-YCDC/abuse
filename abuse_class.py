@@ -41,6 +41,7 @@ class Audit:
             print('초기값 설정')
             Connection_db.cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(\'1\',\'초기화\',\'%s\');'%Date().Now())
             Connection_db.conn.commit()
+            sleep(0.1)
             last_url_id = 1
         else:
             last_url_id = last_url_id[0]
@@ -51,6 +52,7 @@ class Audit:
         http = urllib3.PoolManager()
         urllib3.disable_warnings()
         recent = 'https://urlhaus-api.abuse.ch/v1/urls/recent/limit/1/'
+        sleep(0.1)
         #------------------------------------------
         #recent/limit/1로 접속해서 가장 최근에 등록된 정보의 urlid값을 참고함
         res_recent = http.request('GET',recent)
@@ -68,11 +70,13 @@ class Audit:
         print('Abuse.ch 수집 시작')
         Connection_db.cur.execute('insert into reputation_audit(id,audit_log,log_date) values(default,%s,%s);',('Abuse.ch 수집 시작',Date().Now()))
         Connection_db.conn.commit()
+        sleep(0.1)
     
     def loging_end(self,recent_urlid):
         Connection_db.cur.execute('insert into reputation_audit(audit_log,log_date) values(\'Abuse.ch 수집 종료\',\'%s\');'%Date().Now())
         Connection_db.cur.execute('insert into abuse_url_id(url_id,audit_log,log_date) values(%s,%s,%s);',(recent_urlid,'Abuse.ch 수집 종료 및 url_id 기록',Date().Now()))
         Connection_db.conn.commit()
+        sleep(0.1)
 
 
 class Service:
@@ -81,23 +85,33 @@ class Service:
         for key in indicator:
             Connection_db.cur.execute('select indicator_name from reputation_indicator where indicator_name = \'%s\';'%key)
             check = Connection_db.cur.fetchall()
+            sleep(0.1)
             check = list(map(str,check[0]))[0]
             if(key != check):
                 print('Indicator가 없습니다! 새로운 Indicator를 추가합니다!')
                 print('New indicator :',key)
                 Connection_db.cur.execute('insert into reputation_indicator(indicator_name) values(\'%s\');'%key)
+                sleep(0.1)
             else:
                 print('Find indicator :',key)
 
     def indicator_idx(self,indicator_name):
         Connection_db.cur.execute('select id from reputation_indicator where indicator_name = \'%s\';'%indicator_name)
         i = List().list_int(Connection_db.cur.fetchone())
+        sleep(0.1)
         return i
     
     def indicator_service(self,id):
         Connection_db.cur.execute('select id from reputation_service where service_name = \'%s\';'%id)
         i = List().list_int(Connection_db.cur.fetchone())
+        sleep(0.1)
         return i
+
+    def data_check(self,data):
+        Connection_db.cur.execute('select indicator from reputation_data where indicator = \'%s\';'%data)
+        a = Connection_db.cur.fetchone()
+        sleep(0.1)
+        return a
 
 class Crawl:
     Service().indicator_check()
@@ -111,13 +125,15 @@ class Crawl:
     Audit().loging_start()
 
     for urlid_key in range (last_url_id,recent_url_id):
-        params = {'urlid':urlid_key} 
-        res_csv = http.request('POST',url,fields=params)
         try:
+            params = {'urlid':urlid_key} 
+            res_csv = http.request('POST',url,fields=params)
+            sleep(0.1)
             res_csv_json = json.loads(res_csv.data.decode('utf-8'))
             if res_csv_json['query_status'] == "ok":
                 Connection_db.cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(%s,%s,%s,%s,%s);',(service,Service().indicator_idx('URL'),res_csv_json['url'],Date().Now(),res_csv_json['date_added']))
-                Connection_db.conn.commit() 
+                Connection_db.conn.commit()
+                sleep(0.1) 
                 print("==========================================")
                 print("status :",res_csv_json['query_status'])
                 print("url_id :",urlid_key)
@@ -140,6 +156,7 @@ class Crawl:
                         print("\n")
                         if payload['file_type'] == "unknown":
                             continue
+
                         for j in indi:
                             if j == 'response_md5':
                                 a = 'MD5'
@@ -147,9 +164,16 @@ class Crawl:
                                 a = 'SHA256'
                             elif j == 'file_type':
                                 a = 'FILE_TYPE'
-                            Connection_db.cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(%s,%s,%s,%s,%s);',(service,Service().indicator_idx(a),payload[j],Date().Now(),res_csv_json['date_added']))
-                            Connection_db.conn.commit() 
-                       
+                            
+                            if Service().data_check(payload[j]) == None:
+                                print('중복 발견! PASS합니다!')
+                                continue
+                            else:
+                                sleep(0.1)
+                                Connection_db.cur.execute('insert into reputation_data(service,indicator_type,indicator,reg_date,cre_date) values(%s,%s,%s,%s,%s);',(service,Service().indicator_idx(a),payload[j],Date().Now(),res_csv_json['date_added']))
+                                Connection_db.conn.commit() 
+            else:
+                print(urlid_key,'=','no_result')           
             
         except Exception as error:
             print(urlid_key,'error',error)
@@ -161,10 +185,6 @@ class Crawl:
 
     
     Audit().loging_end(urlid_key)
-
-
-
-
 
 
 Connection_db.cur.close()
